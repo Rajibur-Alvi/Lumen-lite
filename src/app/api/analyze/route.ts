@@ -21,14 +21,11 @@ export async function POST(req: Request) {
       model: google("gemini-1.5-flash"),
       schema: AnalysisSchema,
       prompt: `
-        Analyze this discovery call transcript and generate a pitch deck.
+        Analyze this discovery call transcript and generate a structured pitch deck.
 
-        Transcript:
-        ${transcript}
-
-        ${researchData ? `Client research:\n${JSON.stringify(researchData, null, 2)}` : ""}
-
-        ${memoryContext?.length ? `Relevant past strategies:\n${memoryContext.join("\n")}` : ""}
+        Transcript: ${transcript}
+        ${researchData ? `\nClient research:\n${JSON.stringify(researchData)}` : ""}
+        ${memoryContext?.length ? `\nPast strategies:\n${memoryContext.join("\n")}` : ""}
       `.trim(),
     });
 
