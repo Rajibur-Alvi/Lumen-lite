@@ -1,69 +1,40 @@
-import { NextRequest, NextResponse } from "next/server";
+import { google } from "@ai-sdk/google";
+import { streamObject } from "ai";
+import { AnalysisSchema } from "@/lib/schema";
+import { researchClient } from "@/lib/researcher";
+import { queryMemory } from "@/lib/memory";
 
-export async function POST(req: NextRequest) {
+export const runtime = "nodejs";
+export const maxDuration = 60;
+
+export async function POST(req: Request) {
   try {
-    const { transcript } = await req.json();
-    const apiKey = process.env.GEMINI_API_KEY;
-
-    if (!apiKey) {
-      return NextResponse.json({ error: "GEMINI_API_KEY is not set" }, { status: 500 });
-    }
-
-    const prompt = `
-    Analyze this meeting transcript and return a JSON object.
+    const { transcript, clientName, industry } = await req.json();
     
-    TRANSCRIPT:
-    ${transcript}
-    
-    JSON STRUCTURE:
-    {
-      "clientInfo": {
-        "name": "string",
-        "industry": "string",
-        "painPoints": ["string"]
-      },
-      "roi": {
-        "monthlyBleed": "string",
-        "timeline": "string",
-        "urgencyScore": number
-      },
-      "strategy": {
-        "keyMessage": "string",
-        "objections": [{"claim": "string", "response": "string"}]
-      },
-      "slides": [
-        {
-          "slideNumber": number,
-          "title": "string",
-          "content": ["string"],
-          "speakerNotes": "string",
-          "layout": "title | content | metrics"
-        }
-      ]
-    }
-    
-    Return ONLY valid JSON. Max slides: 15.
-    `;
+    // Step 1 & 2: Parallel Research and Memory Retrieval
+    const [researchData, memoryContext] = await Promise.all([
+      clientName ? researchClient(clientName, industry || "") : Promise.resolve(null),
+      queryMemory(transcript),
+    ]);
 
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { response_mime_type: "application/json" }
-      })
+    const result = await streamObject({
+      model: google("gemini-1.5-flash"),
+      schema: AnalysisSchema,
+      prompt: `
+        Analyze this discovery call transcript and generate a pitch deck.
+
+        Transcript:
+        ${transcript}
+
+        ${researchData ? `Client research:\n${JSON.stringify(researchData, null, 2)}` : ""}
+
+        ${memoryContext?.length ? `Relevant past strategies:\n${memoryContext.join("\n")}` : ""}
+      `.trim(),
     });
 
-    const data = await response.json();
-    const resultText = data.candidates?.[0]?.content?.parts?.[0]?.text;
-    
-    if (!resultText) {
-      throw new Error("No response from Gemini");
-    }
-
-    return NextResponse.json(JSON.parse(resultText));
-  } catch (error: any) {
-    console.error("Analysis error:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return result.toTextStreamResponse();
+  } catch (error) {
+    console.error("API Error:", error);
+    return new Response("Server Error", { status: 500 });
   }
 }
