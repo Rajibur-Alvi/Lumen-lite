@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { Sparkles, Brain, Loader2, FileUp, ChevronDown, ChevronUp, Download } from "lucide-react";
 import { useDropzone } from "react-dropzone";
-import { useObject } from "@ai-sdk/react";
+import { experimental_useObject as useObject } from "@ai-sdk/react";
 import { AnalysisSchema } from "@/lib/schema";
 
 export default function LumenUltra() {
@@ -61,6 +61,7 @@ export default function LumenUltra() {
     const pptxgen = (await import("pptxgenjs")).default;
     const prs = new pptxgen();
     analysis.slides.forEach((slide) => {
+      if (!slide) return;
       const s = prs.addSlide();
       s.addText(slide.title ?? "", {
         x: 0.5, y: 0.3, w: 9, h: 1,
@@ -189,12 +190,15 @@ export default function LumenUltra() {
                     <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
                       Objection Handlers
                     </p>
-                    {analysis.strategy.objections!.map((obj, i) => (
-                      <div key={i} className="bg-white rounded-xl p-3 border border-cyan-100">
-                        <p className="text-xs font-bold text-red-500 mb-1">❝ {obj.claim}</p>
-                        <p className="text-xs text-slate-600">{obj.response}</p>
-                      </div>
-                    ))}
+                    {analysis.strategy.objections!.map((obj, i) => {
+                      if (!obj) return null;
+                      return (
+                        <div key={i} className="bg-white rounded-xl p-3 border border-cyan-100">
+                          <p className="text-xs font-bold text-red-500 mb-1">❝ {obj.claim}</p>
+                          <p className="text-xs text-slate-600">{obj.response}</p>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -271,59 +275,62 @@ export default function LumenUltra() {
             </div>
 
             <div className="space-y-3">
-              {analysis!.slides!.map((slide, i) => (
-                <div
-                  key={i}
-                  className="border border-slate-200 rounded-2xl overflow-hidden"
-                >
-                  {/* Slide header — always visible */}
-                  <button
-                    onClick={() => setExpandedSlide(expandedSlide === i ? null : i)}
-                    className="w-full flex items-center justify-between p-5 text-left hover:bg-slate-50 transition-colors"
+              {analysis!.slides!.map((slide, i) => {
+                if (!slide) return null;
+                return (
+                  <div
+                    key={i}
+                    className="border border-slate-200 rounded-2xl overflow-hidden"
                   >
-                    <div className="flex items-center gap-4">
-                      <span className="w-8 h-8 rounded-lg bg-slate-900 text-white text-xs font-bold flex items-center justify-center flex-shrink-0">
-                        {slide.slideNumber ?? i + 1}
-                      </span>
-                      <div>
-                        <p className="font-bold text-slate-900">{slide.title}</p>
-                        <span className="text-[10px] uppercase tracking-widest text-slate-400 font-semibold">
-                          {slide.layout}
+                    {/* Slide header — always visible */}
+                    <button
+                      onClick={() => setExpandedSlide(expandedSlide === i ? null : i)}
+                      className="w-full flex items-center justify-between p-5 text-left hover:bg-slate-50 transition-colors"
+                    >
+                      <div className="flex items-center gap-4">
+                        <span className="w-8 h-8 rounded-lg bg-slate-900 text-white text-xs font-bold flex items-center justify-center flex-shrink-0">
+                          {slide.slideNumber ?? i + 1}
                         </span>
-                      </div>
-                    </div>
-                    {expandedSlide === i
-                      ? <ChevronUp className="w-4 h-4 text-slate-400 flex-shrink-0" />
-                      : <ChevronDown className="w-4 h-4 text-slate-400 flex-shrink-0" />}
-                  </button>
-
-                  {/* Slide content — expanded */}
-                  {expandedSlide === i && (
-                    <div className="px-5 pb-5 space-y-4 border-t border-slate-100">
-                      {(slide.content?.length ?? 0) > 0 && (
-                        <ul className="space-y-2 pt-4">
-                          {slide.content!.map((line, j) => (
-                            <li key={j} className="flex gap-3 text-sm text-slate-700">
-                              <span className="text-cyan-500 font-bold mt-0.5">→</span>
-                              {line}
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                      {slide.speakerNotes && (
-                        <div className="bg-amber-50 border border-amber-100 rounded-xl p-4">
-                          <p className="text-[10px] font-bold uppercase tracking-widest text-amber-600 mb-1">
-                            Speaker Notes
-                          </p>
-                          <p className="text-sm text-slate-600 leading-relaxed">
-                            {slide.speakerNotes}
-                          </p>
+                        <div>
+                          <p className="font-bold text-slate-900">{slide.title}</p>
+                          <span className="text-[10px] uppercase tracking-widest text-slate-400 font-semibold">
+                            {slide.layout}
+                          </span>
                         </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              ))}
+                      </div>
+                      {expandedSlide === i
+                        ? <ChevronUp className="w-4 h-4 text-slate-400 flex-shrink-0" />
+                        : <ChevronDown className="w-4 h-4 text-slate-400 flex-shrink-0" />}
+                    </button>
+
+                    {/* Slide content — expanded */}
+                    {expandedSlide === i && (
+                      <div className="px-5 pb-5 space-y-4 border-t border-slate-100">
+                        {(slide.content?.length ?? 0) > 0 && (
+                          <ul className="space-y-2 pt-4">
+                            {slide.content!.map((line, j) => (
+                              <li key={j} className="flex gap-3 text-sm text-slate-700">
+                                <span className="text-cyan-500 font-bold mt-0.5">→</span>
+                                {line}
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                        {slide.speakerNotes && (
+                          <div className="bg-amber-50 border border-amber-100 rounded-xl p-4">
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-amber-600 mb-1">
+                              Speaker Notes
+                            </p>
+                            <p className="text-sm text-slate-600 leading-relaxed">
+                              {slide.speakerNotes}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}
